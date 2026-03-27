@@ -1,0 +1,117 @@
+# switch-to-brew — known app-to-cask mappings
+# bundle_id	cask_token	app_display_name
+#
+# This file provides instant lookups for common apps, avoiding slow
+# `brew search` API calls. Add entries as needed.
+# Lines starting with # are comments.
+
+# ── Browsers ─────────────────────────────────────────────────────────────────
+com.google.Chrome	google-chrome	Google Chrome
+com.microsoft.edgemac	microsoft-edge	Microsoft Edge
+org.mozilla.firefox	firefox	Firefox
+org.mozilla.firefoxdeveloperedition	firefox@developer-edition	Firefox Developer Edition
+com.brave.Browser	brave-browser	Brave Browser
+com.vivaldi.Vivaldi	vivaldi	Vivaldi
+com.operasoftware.Opera	opera	Opera
+net.waterfox.waterfox	waterfox	Waterfox
+
+# ── Development ──────────────────────────────────────────────────────────────
+com.microsoft.VSCode	visual-studio-code	Visual Studio Code
+com.microsoft.VSCodeInsiders	visual-studio-code@insiders	Visual Studio Code - Insiders
+com.sublimetext.4	sublime-text	Sublime Text
+com.sublimetext.3	sublime-text	Sublime Text
+com.jetbrains.intellij	intellij-idea	IntelliJ IDEA
+com.jetbrains.intellij.ce	intellij-idea-ce	IntelliJ IDEA CE
+com.jetbrains.pycharm	pycharm	PyCharm
+com.jetbrains.pycharm.ce	pycharm-ce	PyCharm CE
+com.jetbrains.WebStorm	webstorm	WebStorm
+com.jetbrains.goland	goland	GoLand
+com.jetbrains.rider	rider	Rider
+com.jetbrains.CLion	clion	CLion
+com.jetbrains.rustrover	rustrover	RustRover
+com.jetbrains.fleet	fleet	Fleet
+com.docker.docker	docker	Docker
+com.googlecode.iterm2	iterm2	iTerm
+org.tabby	tabby	Tabby
+com.mitchellh.ghostty	ghostty	Ghostty
+com.todesktop.230313mzl4w4u92	cursor	Cursor
+dev.warp.Warp-Stable	warp	Warp
+io.alacritty	alacritty	Alacritty
+com.github.GitHubClient	github	GitHub Desktop
+com.axosoft.gitkraken	gitkraken	GitKraken
+com.tinyspeck.slackmacgap	slack	Slack
+com.figma.Desktop	figma	Figma
+com.postmanlabs.mac	postman	Postman
+dev.zed.Zed	zed	Zed
+com.panic.Nova	nova	Nova
+com.barebones.bbedit	bbedit	BBEdit
+
+# ── Terminals & shells ───────────────────────────────────────────────────────
+com.microsoft.powershell	powershell	PowerShell
+
+# ── Productivity ─────────────────────────────────────────────────────────────
+md.obsidian	obsidian	Obsidian
+com.electron.logseq	logseq	Logseq
+com.notion.Notion	notion	Notion
+com.todoist.mac.Todoist	todoist	Todoist
+com.agilebits.onepassword7	1password	1Password 7
+com.1password.1password	1password	1Password
+com.bitwarden.desktop	bitwarden	Bitwarden
+com.getdropbox.dropbox	dropbox	Dropbox
+com.readdle.PDFExpert-Mac	pdf-expert	PDF Expert
+
+# ── Communication ────────────────────────────────────────────────────────────
+org.whispersystems.signal-desktop	signal	Signal
+com.hnc.Discord	discord	Discord
+us.zoom.xos	zoom	Zoom
+com.skype.skype	skype	Skype
+org.telegram.desktop	telegram-desktop	Telegram Desktop
+com.openai.chat	chatgpt	ChatGPT
+
+# ── Microsoft Office ─────────────────────────────────────────────────────────
+com.microsoft.Word	microsoft-word	Microsoft Word
+com.microsoft.Excel	microsoft-excel	Microsoft Excel
+com.microsoft.Powerpoint	microsoft-powerpoint	Microsoft PowerPoint
+com.microsoft.Outlook	microsoft-outlook	Microsoft Outlook
+com.microsoft.onenote.mac	microsoft-onenote	Microsoft OneNote
+com.microsoft.teams2	microsoft-teams	Microsoft Teams
+com.microsoft.OneDrive	onedrive	OneDrive
+
+# ── Creative / Media ─────────────────────────────────────────────────────────
+org.gimp.gimp	gimp	GIMP
+org.inkscape.Inkscape	inkscape	Inkscape
+com.spotify.client	spotify	Spotify
+org.videolan.vlc	vlc	VLC
+com.colliderli.iina	iina	IINA
+tv.plex.desktop	plex	Plex
+com.audacityteam.audacity	audacity	Audacity
+org.blender.blender	blender	Blender
+com.adobe.Reader	adobe-acrobat-reader	Adobe Acrobat Reader
+
+# ── Utilities ────────────────────────────────────────────────────────────────
+org.torproject.torbrowser	tor-browser	Tor Browser
+com.teamviewer.TeamViewer	teamviewer	TeamViewer
+com.displaylink.DisplayLinkUserAgent	displaylink	DisplayLink Manager
+com.parallels.desktop.console	parallels	Parallels Desktop
+com.parallels.toolbox	parallels-toolbox	Parallels Toolbox
+com.TechSmith.Snagit	snagit	Snagit
+com.vmware.fusion	vmware-fusion	VMware Fusion
+org.virtualbox.app.VirtualBox	virtualbox	VirtualBox
+com.logi.optionsplus	logi-options+	Logi Options+
+com.noodlesoft.Hazel	hazel	Hazel
+com.alfredapp.Alfred	alfred	Alfred
+com.raycast.macos	raycast	Raycast
+com.flexibits.fantastical2.mac	fantastical	Fantastical
+com.macpaw.CleanMyMac4	cleanmymac	CleanMyMac
+com.flexibits.cardhop.mac	cardhop	Cardhop
+org.localsend.localsendApp	localsend	LocalSend
+org.kde.kdeconnect	kdeconnect	KDE Connect
+com.paulthetall.portingkit	porting-kit	Porting Kit
+
+# ── AI / ML ──────────────────────────────────────────────────────────────────
+ai.elementlabs.lmstudio	lm-studio	LM Studio
+
+# ── 3D Printing ──────────────────────────────────────────────────────────────
+com.softfever3d.orca-slicer	orcaslicer	OrcaSlicer
+com.ultimaker.cura	ultimaker-cura	Ultimaker Cura
+com.prusa3d.slicer	prusaslicer	PrusaSlicer

@@ -1,0 +1,325 @@
+#!/bin/bash
+#
+# switch-to-brew — Discover and adopt macOS apps into Homebrew management
+# Compatible with macOS default bash (3.2+) — no bash 4 features required.
+#
+# Usage:
+#   switch-to-brew                     Interactive discover + select + switch
+#   switch-to-brew discover            Scan and show switchable apps
+#   switch-to-brew list                Machine-readable TSV output
+#   switch-to-brew switch <cask>...    Adopt specific cask(s)
+#   switch-to-brew switch --all        Adopt all discovered apps
+#   switch-to-brew cache clear         Clear cached discovery results
+#
+# Options:
+#   -n, --dry-run       Show what would happen without making changes
+#   -j, --json          Output discovery results as JSON
+#   -a, --app-store     Include Mac App Store apps in discovery
+#       --no-color      Disable colored output
+#   -v, --verbose       Enable debug output
+#   -h, --help          Show this help message
+#   -V, --version       Show version
+#
+# Environment:
+#   NO_COLOR=1          Disable colored output (respects https://no-color.org)
+#   STB_DEBUG=1         Enable debug logging
+#
+# Examples:
+#   switch-to-brew                     # Full interactive workflow
+#   switch-to-brew discover            # Just see what's available
+#   switch-to-brew list | grep chrome  # Find a specific app
+#   switch-to-brew switch docker       # Adopt Docker directly
+#   switch-to-brew -n switch --all     # Preview adopting everything
+#
+set -euo pipefail
+
+# ── Resolve script location & source libraries ──────────────────────────────
+
+STB_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly STB_SCRIPT_DIR
+readonly STB_LIB_DIR="${STB_SCRIPT_DIR}/lib"
+
+# shellcheck source=lib/constants.sh
+source "${STB_LIB_DIR}/constants.sh"
+# shellcheck source=lib/utils.sh
+source "${STB_LIB_DIR}/utils.sh"
+# shellcheck source=lib/discovery.sh
+source "${STB_LIB_DIR}/discovery.sh"
+# shellcheck source=lib/cask_match.sh
+source "${STB_LIB_DIR}/cask_match.sh"
+# shellcheck source=lib/ui.sh
+source "${STB_LIB_DIR}/ui.sh"
+# shellcheck source=lib/brew_ops.sh
+source "${STB_LIB_DIR}/brew_ops.sh"
+
+# ── Global flags ─────────────────────────────────────────────────────────────
+
+STB_DRY_RUN=false
+STB_JSON=false
+STB_INCLUDE_APP_STORE=false
+
+# ── Usage / Help ─────────────────────────────────────────────────────────────
+
+stb_usage() {
+    # Extract the comment block at the top of this script as help text
+    sed -n '/^# Usage:/,/^set /{ /^#/s/^# \{0,1\}//p; }' "${BASH_SOURCE[0]}"
+}
+
+stb_version() {
+    echo "${STB_NAME} ${STB_VERSION}"
+}
+
+# ── Core workflows ───────────────────────────────────────────────────────────
+
+stb_do_discover() {
+    stb_cache_init
+    stb_cask_load_known
+
+    stb_info "Scanning for applications..."
+    local discovered
+    discovered="$(stb_discover_apps "$STB_INCLUDE_APP_STORE")"
+
+    local app_count
+    app_count="$(echo "$discovered" | grep -c . || true)"
+
+    if [ "$app_count" -eq 0 ]; then
+        stb_success "All your apps are already managed by Homebrew!"
+        exit "$EXIT_NO_RESULTS"
+    fi
+
+    stb_info "Found ${app_count} unmanaged $(stb_plural "$app_count" app). Resolving casks..."
+
+    local resolved
+    resolved="$(echo "$discovered" | stb_cask_resolve_all)"
+
+    local match_count
+    match_count="$(echo "$resolved" | grep -c . || true)"
+
+    if [ "$match_count" -eq 0 ]; then
+        stb_warn "No Homebrew casks found for your unmanaged apps."
+        exit "$EXIT_NO_RESULTS"
+    fi
+
+    echo "$resolved"
+}
+
+stb_cmd_discover() {
+    local resolved
+    resolved="$(stb_do_discover)"
+
+    if [ "$STB_JSON" = "true" ]; then
+        stb_output_json "$resolved"
+    else
+        echo ""
+        echo "$resolved" | stb_ui_print_table false
+        echo ""
+        local count
+        count="$(echo "$resolved" | grep -c .)"
+        stb_info "Run ${C_BOLD}switch-to-brew switch${C_RESET} to adopt these apps into Homebrew."
+    fi
+}
+
+stb_cmd_list() {
+    local resolved
+    resolved="$(stb_do_discover)"
+
+    # Output raw TSV for scripting (header + data)
+    printf 'app_name\tcask_token\tapp_path\tsource\tbundle_id\n'
+    echo "$resolved"
+}
+
+stb_cmd_switch() {
+    if [ "${1:-}" = "--all" ]; then
+        stb_cmd_switch_all
+        return
+    fi
+
+    # Direct cask adoption by name
+    if [ $# -eq 0 ]; then
+        stb_error "No cask names provided."
+        stb_error "Usage: switch-to-brew switch <cask> [cask...]"
+        stb_error "       switch-to-brew switch --all"
+        exit "$EXIT_USAGE"
+    fi
+
+    local switch_input=""
+    for cask in "$@"; do
+        switch_input="${switch_input}${cask}	${cask}	/Applications/${cask}	manual	unknown
+"
+    done
+
+    local dry_flag=""
+    [ "$STB_DRY_RUN" = "true" ] && dry_flag="--dry-run"
+
+    echo "$switch_input" | stb_brew_adopt_batch $dry_flag
+}
+
+stb_cmd_switch_all() {
+    local resolved
+    resolved="$(stb_do_discover)"
+
+    local count
+    count="$(echo "$resolved" | grep -c .)"
+
+    echo ""
+    echo "$resolved" | stb_ui_print_table false
+    echo ""
+
+    if [ "$STB_DRY_RUN" != "true" ]; then
+        if ! stb_confirm "Switch all ${count} $(stb_plural "$count" app) to Homebrew?"; then
+            stb_info "Cancelled."
+            exit "$EXIT_OK"
+        fi
+    fi
+
+    local dry_flag=""
+    [ "$STB_DRY_RUN" = "true" ] && dry_flag="--dry-run"
+
+    echo "$resolved" | stb_brew_adopt_batch $dry_flag
+}
+
+stb_cmd_interactive() {
+    local resolved
+    resolved="$(stb_do_discover)"
+
+    local selected
+    if ! selected="$(echo "$resolved" | stb_ui_select)"; then
+        stb_info "No apps selected."
+        exit "$EXIT_OK"
+    fi
+
+    local count
+    count="$(echo "$selected" | grep -c .)"
+
+    echo "" >&2
+    stb_info "Selected ${count} $(stb_plural "$count" app) to switch:"
+    echo "$selected" | stb_ui_print_table false >&2
+    echo "" >&2
+
+    if [ "$STB_DRY_RUN" != "true" ]; then
+        if ! stb_confirm "Proceed with switching?"; then
+            stb_info "Cancelled."
+            exit "$EXIT_OK"
+        fi
+    fi
+
+    local dry_flag=""
+    [ "$STB_DRY_RUN" = "true" ] && dry_flag="--dry-run"
+
+    echo "$selected" | stb_brew_adopt_batch $dry_flag
+}
+
+stb_cmd_cache() {
+    case "${1:-}" in
+        clear) stb_cache_clear ;;
+        *)
+            stb_error "Usage: switch-to-brew cache clear"
+            exit "$EXIT_USAGE"
+            ;;
+    esac
+}
+
+# ── JSON output ──────────────────────────────────────────────────────────────
+
+stb_output_json() {
+    local data="$1"
+    echo "["
+    local first=true
+    while IFS=$'\t' read -r app_name cask_token app_path source bundle_id; do
+        $first || echo ","
+        first=false
+        # Escape strings for JSON
+        printf '  {"app": "%s", "cask": "%s", "path": "%s", "source": "%s", "bundle_id": "%s"}' \
+            "$app_name" "$cask_token" "$app_path" "$source" "$bundle_id"
+    done <<< "$data"
+    echo ""
+    echo "]"
+}
+
+# ── Argument parsing ─────────────────────────────────────────────────────────
+
+stb_main() {
+    local command=""
+    local command_args=""
+
+    # Parse global flags
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            -h|--help)
+                stb_usage
+                exit "$EXIT_OK"
+                ;;
+            -V|--version)
+                stb_version
+                exit "$EXIT_OK"
+                ;;
+            -n|--dry-run)
+                STB_DRY_RUN=true
+                shift
+                ;;
+            -j|--json)
+                STB_JSON=true
+                shift
+                ;;
+            -a|--app-store)
+                STB_INCLUDE_APP_STORE=true
+                shift
+                ;;
+            --no-color)
+                export STB_NO_COLOR=1
+                shift
+                ;;
+            -v|--verbose)
+                export STB_DEBUG=1
+                shift
+                ;;
+            -*)
+                stb_error "Unknown option: $1"
+                stb_usage
+                exit "$EXIT_USAGE"
+                ;;
+            *)
+                if [ -z "$command" ]; then
+                    command="$1"
+                else
+                    command_args="${command_args} $1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    # Preflight checks
+    stb_require_macos
+    stb_require_brew
+
+    # Dispatch command
+    case "${command:-interactive}" in
+        discover|scan)
+            stb_cmd_discover
+            ;;
+        list|ls)
+            stb_cmd_list
+            ;;
+        switch|adopt)
+            # shellcheck disable=SC2086
+            stb_cmd_switch $command_args
+            ;;
+        cache)
+            # shellcheck disable=SC2086
+            stb_cmd_cache $command_args
+            ;;
+        interactive|"")
+            stb_cmd_interactive
+            ;;
+        *)
+            stb_error "Unknown command: ${command}"
+            stb_usage
+            exit "$EXIT_USAGE"
+            ;;
+    esac
+}
+
+# ── Entrypoint ───────────────────────────────────────────────────────────────
+
+stb_main "$@"
