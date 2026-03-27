@@ -85,7 +85,7 @@ stb_ui_select() {
 
     local selection
     printf '%s❯%s ' "${C_CYAN}" "${C_RESET}" >&2
-    read -r selection
+    read -r selection < /dev/tty
 
     if [ -z "$selection" ] || [ "$selection" = "q" ] || [ "$selection" = "quit" ]; then
         rm -f "$lines_file"

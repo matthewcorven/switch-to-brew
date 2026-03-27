@@ -122,7 +122,7 @@ stb_confirm() {
     printf '%s%s %s%s ' "${C_BOLD}" "$prompt" "${C_DIM}" "$hint" >&2
     printf '%s' "${C_RESET}" >&2
     local reply
-    read -r reply
+    read -r reply < /dev/tty
     reply="${reply:-$default}"
     case "$reply" in
         [Yy]*) return 0 ;;
