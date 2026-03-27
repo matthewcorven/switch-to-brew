@@ -15,9 +15,28 @@
 stb_discover_apps() {
     local include_app_store="${1:-false}"
 
-    # 1. Build a list of Homebrew-managed app names (one per line in a temp file)
+    # 1. Build a list of Homebrew-managed identifiers (cask tokens + app names)
     local managed_file="${STB_CACHE_DIR}/_managed_apps"
     brew list --cask -1 2>/dev/null > "$managed_file"
+
+    # Resolve cask tokens → app names via known_casks.tsv so we can match
+    # apps whose name differs from the cask token (e.g. iTerm → iterm2,
+    # DisplayLink Manager → displaylink)
+    local known_file="${STB_SCRIPT_DIR}/data/known_casks.tsv"
+    if [ -f "$known_file" ] && [ -f "$managed_file" ]; then
+        local tokens_copy="${STB_CACHE_DIR}/_managed_tokens"
+        cp "$managed_file" "$tokens_copy"
+        local cask_token
+        while IFS= read -r cask_token; do
+            [ -z "$cask_token" ] && continue
+            local mapped_name
+            mapped_name="$(awk -F'\t' -v t="$cask_token" '$2 == t { print $3 }' "$known_file" 2>/dev/null)"
+            if [ -n "$mapped_name" ]; then
+                echo "$mapped_name" >> "$managed_file"
+            fi
+        done < "$tokens_copy"
+        rm -f "$tokens_copy"
+    fi
 
     # Also add .app names found in the caskroom
     local caskroom
@@ -44,8 +63,14 @@ stb_discover_apps() {
             local app_name
             app_name="$(basename "$app_path" .app)"
 
-            # Skip if already managed by brew (case-insensitive match on app name
-            # or normalised cask-style name)
+            # Get bundle identifier (needed for multiple checks below)
+            local bundle_id
+            bundle_id="$(defaults read "${app_path}/Contents/Info" CFBundleIdentifier 2>/dev/null || echo "")"
+
+            # Skip if already managed by brew:
+            #   1. Case-insensitive match on app name (e.g. "Docker" matches "docker")
+            #   2. Normalised cask-style name (e.g. "visual-studio-code")
+            #   3. Known cask token for this bundle ID (catches renamed casks)
             local norm_name
             norm_name="$(echo "$app_name" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')"
             if grep -qixF "$app_name" "$managed_file" 2>/dev/null || \
@@ -53,10 +78,14 @@ stb_discover_apps() {
                 stb_debug "  skip (brew-managed): $app_name"
                 continue
             fi
-
-            # Get bundle identifier
-            local bundle_id
-            bundle_id="$(defaults read "${app_path}/Contents/Info" CFBundleIdentifier 2>/dev/null || echo "")"
+            if [ -n "$bundle_id" ] && [ -f "$known_file" ]; then
+                local known_token
+                known_token="$(awk -F'\t' -v b="$bundle_id" '$1 == b { print $2 }' "$known_file" 2>/dev/null)"
+                if [ -n "$known_token" ] && grep -qxF "$known_token" "$managed_file" 2>/dev/null; then
+                    stb_debug "  skip (brew-managed via known cask): $app_name ($known_token)"
+                    continue
+                fi
+            fi
 
             # Skip system apps by bundle ID prefix
             case "$bundle_id" in

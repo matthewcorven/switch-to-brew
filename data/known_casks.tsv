@@ -30,7 +30,7 @@ com.jetbrains.rider	rider	Rider
 com.jetbrains.CLion	clion	CLion
 com.jetbrains.rustrover	rustrover	RustRover
 com.jetbrains.fleet	fleet	Fleet
-com.docker.docker	docker	Docker
+com.docker.docker	docker-desktop	Docker
 com.googlecode.iterm2	iterm2	iTerm
 org.tabby	tabby	Tabby
 com.mitchellh.ghostty	ghostty	Ghostty
