@@ -15,6 +15,8 @@
 #   -n, --dry-run       Show what would happen without making changes
 #   -j, --json          Output discovery results as JSON
 #   -a, --app-store     Include Mac App Store apps in discovery
+#       --strict        Fail on version mismatch (don't force-adopt)
+#       --upgrade       Upgrade to latest cask version after adopting
 #       --no-color      Disable colored output
 #   -v, --verbose       Enable debug output
 #   -h, --help          Show this help message
@@ -30,6 +32,7 @@
 #   switch-to-brew list | grep chrome  # Find a specific app
 #   switch-to-brew switch docker       # Adopt Docker directly
 #   switch-to-brew -n switch --all     # Preview adopting everything
+#   switch-to-brew switch gimp --upgrade  # Adopt + upgrade to latest
 #
 set -euo pipefail
 
@@ -57,6 +60,8 @@ source "${STB_LIB_DIR}/brew_ops.sh"
 STB_DRY_RUN=false
 STB_JSON=false
 STB_INCLUDE_APP_STORE=false
+STB_STRICT=false
+STB_UPGRADE=false
 
 # ── Usage / Help ─────────────────────────────────────────────────────────────
 
@@ -251,6 +256,8 @@ stb_main() {
             -n|--dry-run)  STB_DRY_RUN=true ;;
             -j|--json)     STB_JSON=true ;;
             -a|--app-store) STB_INCLUDE_APP_STORE=true ;;
+            --strict)      STB_STRICT=true ;;
+            --upgrade)     STB_UPGRADE=true ;;
             --no-color)    export STB_NO_COLOR=1 ;;
             -v|--verbose)  export STB_DEBUG=1 ;;
             *)             rest="${rest}${rest:+$'\n'}${arg}" ;;

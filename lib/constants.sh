@@ -3,7 +3,7 @@
 # Compatible with macOS default bash (3.2+)
 # shellcheck shell=bash
 
-STB_VERSION="1.0.0"
+STB_VERSION="1.1.0"
 STB_NAME="switch-to-brew"
 
 # ── Exit codes ───────────────────────────────────────────────────────────────

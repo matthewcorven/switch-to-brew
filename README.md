@@ -114,6 +114,30 @@ switch-to-brew switch docker obsidian signal
 switch-to-brew switch --all
 ```
 
+### Handle version mismatches
+
+If the installed version of an app differs from what the Homebrew cask currently ships, `--adopt` alone will fail. By default, **switch-to-brew** automatically retries with `--force` and shows a warning:
+
+```
+⚠ Version mismatch: GIMP installed=3.0.6, cask=3.2.0
+▸ Retrying with --force (brew upgrade will update it later)...
+✔ GIMP force-adopted (3.0.6 → brew upgrade will bring to 3.2.0)
+```
+
+To immediately upgrade to the latest version after adopting:
+
+```bash
+switch-to-brew switch gimp --upgrade          # Adopt + upgrade one app
+switch-to-brew switch --all --upgrade         # Adopt + upgrade everything
+switch-to-brew --upgrade                      # Interactive mode with upgrade
+```
+
+To disable force-retry and fail on any version mismatch:
+
+```bash
+switch-to-brew switch gimp --strict
+```
+
 ### Dry run
 
 Preview what would happen without making any changes:
@@ -188,7 +212,7 @@ make lint    # requires shellcheck
 
 - **App Store apps** require manual removal from the App Store before Homebrew can manage them. By default they're excluded from discovery.
 - **Setapp apps** are discovered and flagged but may not work correctly with `--adopt` since Setapp manages its own app lifecycle.
-- **Version mismatches** — if your installed version is very different from what Homebrew's cask currently ships, `--adopt` may still succeed but the next `brew upgrade` will update to the latest cask version.
+- **Version mismatches** — if your installed version differs from the Homebrew cask version, `--adopt` alone will fail. By default, **switch-to-brew** detects this and retries with `--force` so Homebrew takes ownership of your existing binary. Run `brew upgrade --cask` later (or pass `--upgrade`) to update to the latest version. Use `--strict` to fail on mismatch instead.
 - Requires **Homebrew** to be installed. Requires **macOS** (this tool uses macOS-specific APIs like `defaults read` and `mdls`).
 
 ## 📄 License
