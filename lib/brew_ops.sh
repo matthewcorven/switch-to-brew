@@ -50,6 +50,9 @@ stb_brew_adopt_batch() {
     local dry_run="false"
     [ "${1:-}" = "--dry-run" ] && dry_run="true"
 
+    # Ensure cache dir exists for temp file
+    mkdir -p "$STB_CACHE_DIR"
+
     # Read into temp file
     local batch_file="${STB_CACHE_DIR}/_adopt_batch"
     cat > "$batch_file"

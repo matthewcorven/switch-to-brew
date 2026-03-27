@@ -242,52 +242,34 @@ stb_main() {
     local command=""
     local command_args=""
 
-    # Parse global flags
-    while [ $# -gt 0 ]; do
-        case "$1" in
-            -h|--help)
-                stb_usage
-                exit "$EXIT_OK"
-                ;;
-            -V|--version)
-                stb_version
-                exit "$EXIT_OK"
-                ;;
-            -n|--dry-run)
-                STB_DRY_RUN=true
-                shift
-                ;;
-            -j|--json)
-                STB_JSON=true
-                shift
-                ;;
-            -a|--app-store)
-                STB_INCLUDE_APP_STORE=true
-                shift
-                ;;
-            --no-color)
-                export STB_NO_COLOR=1
-                shift
-                ;;
-            -v|--verbose)
-                export STB_DEBUG=1
-                shift
-                ;;
-            -*)
-                stb_error "Unknown option: $1"
-                stb_usage
-                exit "$EXIT_USAGE"
-                ;;
-            *)
-                if [ -z "$command" ]; then
-                    command="$1"
-                else
-                    command_args="${command_args} $1"
-                fi
-                shift
-                ;;
+    # First pass: extract global flags from anywhere, collect the rest
+    local rest=""
+    for arg in "$@"; do
+        case "$arg" in
+            -h|--help)     stb_usage; exit "$EXIT_OK" ;;
+            -V|--version)  stb_version; exit "$EXIT_OK" ;;
+            -n|--dry-run)  STB_DRY_RUN=true ;;
+            -j|--json)     STB_JSON=true ;;
+            -a|--app-store) STB_INCLUDE_APP_STORE=true ;;
+            --no-color)    export STB_NO_COLOR=1 ;;
+            -v|--verbose)  export STB_DEBUG=1 ;;
+            *)             rest="${rest}${rest:+$'\n'}${arg}" ;;
         esac
     done
+
+    # Second pass: first positional is the command, rest are command args
+    local first=true
+    local IFS_SAVE="$IFS"
+    IFS=$'\n'
+    for arg in $rest; do
+        if $first; then
+            command="$arg"
+            first=false
+        else
+            command_args="${command_args} ${arg}"
+        fi
+    done
+    IFS="$IFS_SAVE"
 
     # Preflight checks
     stb_require_macos
