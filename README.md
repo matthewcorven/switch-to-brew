@@ -213,6 +213,7 @@ make lint    # requires shellcheck
 - **App Store apps** require manual removal from the App Store before Homebrew can manage them. By default they're excluded from discovery.
 - **Setapp apps** are discovered and flagged but may not work correctly with `--adopt` since Setapp manages its own app lifecycle.
 - **Version mismatches** — if your installed version differs from the Homebrew cask version, `--adopt` alone will fail. By default, **switch-to-brew** detects this and retries with `--force` so Homebrew takes ownership of your existing binary. Run `brew upgrade --cask` later (or pass `--upgrade`) to update to the latest version. Use `--strict` to fail on mismatch instead.
+- **Password prompts** — some casks include `.pkg` installers or privileged helpers (e.g. Docker, Parallels, DisplayLink, Microsoft Office) that require `sudo`. Homebrew will prompt for your macOS password during these adoptions. This is normal Homebrew behaviour and not something switch-to-brew controls.
 - Requires **Homebrew** to be installed. Requires **macOS** (this tool uses macOS-specific APIs like `defaults read` and `mdls`).
 
 ## 📄 License
