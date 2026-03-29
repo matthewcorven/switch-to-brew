@@ -31,6 +31,30 @@ stb_cask_load_known() {
     stb_debug "Loaded ${count} known cask mappings."
 }
 
+# ── Validate a cask token actually exists in Homebrew ─────────────────────────
+# Uses `brew info --cask` with result caching to avoid repeated API calls.
+# Returns 0 if valid, 1 if not.
+
+stb_cask_exists() {
+    local token="$1"
+
+    # Check positive/negative cache first
+    local cached
+    if cached="$(stb_cache_get "exists-${token}" 2>/dev/null)"; then
+        [ "$cached" = "yes" ] && return 0
+        return 1
+    fi
+
+    if brew info --cask "$token" >/dev/null 2>&1; then
+        echo "yes" | stb_cache_set "exists-${token}"
+        return 0
+    else
+        echo "no" | stb_cache_set "exists-${token}"
+        stb_debug "  cask '${token}' does not exist in Homebrew"
+        return 1
+    fi
+}
+
 # ── Resolve a single app to its Homebrew cask token ──────────────────────────
 # Args: app_name  bundle_id
 # Output: cask_token (or empty string if no match)
@@ -47,7 +71,7 @@ stb_cask_resolve() {
     if [ -n "$STB_KNOWN_BY_BUNDLE" ] && [ -f "$STB_KNOWN_BY_BUNDLE" ]; then
         local match
         match="$(grep -F "$bundle_id" "$STB_KNOWN_BY_BUNDLE" | head -1 | cut -f2)"
-        if [ -n "$match" ]; then
+        if [ -n "$match" ] && stb_cask_exists "$match"; then
             echo "$match"
             return 0
         fi
@@ -58,7 +82,7 @@ stb_cask_resolve() {
         local match
         # Use awk for exact first-field match to avoid partial matches
         match="$(awk -F'\t' -v name="$app_name" '$1 == name {print $2; exit}' "$STB_KNOWN_BY_NAME")"
-        if [ -n "$match" ]; then
+        if [ -n "$match" ] && stb_cask_exists "$match"; then
             echo "$match"
             return 0
         fi
