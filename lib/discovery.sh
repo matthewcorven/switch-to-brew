@@ -18,6 +18,8 @@ stb_discover_apps() {
     # 1. Build a list of Homebrew-managed identifiers (cask tokens + app names)
     local managed_file="${STB_CACHE_DIR}/_managed_apps"
     brew list --cask -1 2>/dev/null > "$managed_file"
+    local managed_formula_file="${STB_CACHE_DIR}/_managed_formulae"
+    brew list -1 2>/dev/null > "$managed_formula_file"
 
     # Resolve cask tokens → app names via known_casks.tsv so we can match
     # apps whose name differs from the cask token (e.g. iTerm → iterm2,
@@ -30,12 +32,36 @@ stb_discover_apps() {
         while IFS= read -r cask_token; do
             [ -z "$cask_token" ] && continue
             local mapped_name
-            mapped_name="$(awk -F'\t' -v t="$cask_token" '$2 == t { print $3 }' "$known_file" 2>/dev/null)"
+            mapped_name="$(awk -F'\t' -v t="$cask_token" '($4 == "" || $4 == "cask") && $2 == t { print $3 }' "$known_file" 2>/dev/null)"
             if [ -n "$mapped_name" ]; then
                 echo "$mapped_name" >> "$managed_file"
             fi
         done < "$tokens_copy"
         rm -f "$tokens_copy"
+    fi
+
+    if [ -f "$known_file" ] && [ -f "$managed_formula_file" ]; then
+        local formulas_copy="${STB_CACHE_DIR}/_managed_formula_tokens"
+        cp "$managed_formula_file" "$formulas_copy"
+        local formula_token
+        while IFS= read -r formula_token; do
+            [ -z "$formula_token" ] && continue
+            local mapped_name
+            mapped_name="$(awk -F'\t' -v t="$formula_token" '
+                {
+                    type = ($4 == "" ? "cask" : $4)
+                    short = $2
+                    sub(/^.*\//, "", short)
+                    if (type == "formula" && (t == $2 || t == short)) {
+                        print $3
+                    }
+                }
+            ' "$known_file" 2>/dev/null)"
+            if [ -n "$mapped_name" ]; then
+                echo "$mapped_name" >> "$managed_file"
+            fi
+        done < "$formulas_copy"
+        rm -f "$formulas_copy"
     fi
 
     # Also add .app names found in the caskroom
@@ -79,11 +105,22 @@ stb_discover_apps() {
                 continue
             fi
             if [ -n "$bundle_id" ] && [ -f "$known_file" ]; then
-                local known_token
+                local known_token known_type known_short
                 known_token="$(awk -F'\t' -v b="$bundle_id" '$1 == b { print $2 }' "$known_file" 2>/dev/null)"
-                if [ -n "$known_token" ] && grep -qxF "$known_token" "$managed_file" 2>/dev/null; then
-                    stb_debug "  skip (brew-managed via known cask): $app_name ($known_token)"
-                    continue
+                known_type="$(awk -F'\t' -v b="$bundle_id" '$1 == b { print ($4 == "" ? "cask" : $4) }' "$known_file" 2>/dev/null)"
+                [ -z "$known_type" ] && known_type="cask"
+                if [ -n "$known_token" ]; then
+                    if [ "$known_type" = "formula" ]; then
+                        known_short="$(echo "$known_token" | awk -F/ '{print $NF}')"
+                        if grep -qxF "$known_token" "$managed_formula_file" 2>/dev/null || \
+                           grep -qxF "$known_short" "$managed_formula_file" 2>/dev/null; then
+                            stb_debug "  skip (brew-managed via known formula): $app_name ($known_token)"
+                            continue
+                        fi
+                    elif grep -qxF "$known_token" "$managed_file" 2>/dev/null; then
+                        stb_debug "  skip (brew-managed via known cask): $app_name ($known_token)"
+                        continue
+                    fi
                 fi
             fi
 

@@ -1,14 +1,14 @@
 #!/bin/bash
 #
-# switch-to-brew — Discover and adopt macOS apps into Homebrew management
+# switch-to-brew — Discover and switch macOS apps into Homebrew management
 # Compatible with macOS default bash (3.2+) — no bash 4 features required.
 #
 # Usage:
 #   switch-to-brew                     Interactive discover + select + switch
 #   switch-to-brew discover            Scan and show switchable apps
 #   switch-to-brew list                Machine-readable TSV output
-#   switch-to-brew switch <cask>...    Adopt specific cask(s)
-#   switch-to-brew switch --all        Adopt all discovered apps
+#   switch-to-brew switch <package>...  Switch specific Homebrew package(s)
+#   switch-to-brew switch --all        Switch all discovered apps
 #   switch-to-brew cache clear         Clear cached discovery results
 #
 # Options:
@@ -16,7 +16,7 @@
 #   -j, --json          Output discovery results as JSON
 #   -a, --app-store     Include Mac App Store apps in discovery
 #       --strict        Fail on version mismatch (don't force-adopt)
-#       --upgrade       Upgrade to latest cask version after adopting
+#       --upgrade       Upgrade to the latest Homebrew version after switching
 #       --no-color      Disable colored output
 #   -v, --verbose       Enable debug output
 #   -h, --help          Show this help message
@@ -30,9 +30,9 @@
 #   switch-to-brew                     # Full interactive workflow
 #   switch-to-brew discover            # Just see what's available
 #   switch-to-brew list | grep chrome  # Find a specific app
-#   switch-to-brew switch docker       # Adopt Docker directly
-#   switch-to-brew -n switch --all     # Preview adopting everything
-#   switch-to-brew switch gimp --upgrade  # Adopt + upgrade to latest
+#   switch-to-brew switch docker       # Switch Docker directly
+#   switch-to-brew -n switch --all     # Preview switching everything
+#   switch-to-brew switch gimp --upgrade  # Switch + upgrade to latest
 #
 set -euo pipefail
 
@@ -92,7 +92,7 @@ stb_do_discover() {
         exit "$EXIT_NO_RESULTS"
     fi
 
-    stb_info "Found ${app_count} unmanaged $(stb_plural "$app_count" app). Resolving casks..."
+    stb_info "Found ${app_count} unmanaged $(stb_plural "$app_count" app). Resolving Homebrew packages..."
 
     local resolved
     resolved="$(echo "$discovered" | stb_cask_resolve_all)"
@@ -101,7 +101,7 @@ stb_do_discover() {
     match_count="$(echo "$resolved" | grep -c . || true)"
 
     if [ "$match_count" -eq 0 ]; then
-        stb_warn "No Homebrew casks found for your unmanaged apps."
+        stb_warn "No Homebrew packages found for your unmanaged apps."
         exit "$EXIT_NO_RESULTS"
     fi
 
@@ -120,7 +120,7 @@ stb_cmd_discover() {
         echo ""
         local count
         count="$(echo "$resolved" | grep -c .)"
-        stb_info "Run ${C_BOLD}switch-to-brew switch${C_RESET} to adopt these apps into Homebrew."
+        stb_info "Run ${C_BOLD}switch-to-brew switch${C_RESET} to switch these apps to Homebrew."
     fi
 }
 
@@ -129,7 +129,7 @@ stb_cmd_list() {
     resolved="$(stb_do_discover)"
 
     # Output raw TSV for scripting (header + data)
-    printf 'app_name\tcask_token\tapp_path\tsource\tbundle_id\n'
+    printf 'app_name\tcask_token\tapp_path\tsource\tbundle_id\tpackage_type\n'
     echo "$resolved"
 }
 
@@ -139,17 +139,19 @@ stb_cmd_switch() {
         return
     fi
 
-    # Direct cask adoption by name
+    # Direct package install/adoption by token
     if [ $# -eq 0 ]; then
-        stb_error "No cask names provided."
-        stb_error "Usage: switch-to-brew switch <cask> [cask...]"
+        stb_error "No package names provided."
+        stb_error "Usage: switch-to-brew switch <package> [package...]"
         stb_error "       switch-to-brew switch --all"
         exit "$EXIT_USAGE"
     fi
 
     local switch_input=""
     for cask in "$@"; do
-        switch_input="${switch_input}${cask}	${cask}	/Applications/${cask}	manual	unknown
+        local package_type
+        package_type="$(stb_brew_detect_package_type "$cask")"
+        switch_input="${switch_input}${cask}	${cask}		manual	unknown	${package_type}
 "
     done
 
@@ -230,12 +232,12 @@ stb_output_json() {
     local data="$1"
     echo "["
     local first=true
-    while IFS=$'\t' read -r app_name cask_token app_path source bundle_id; do
+    while IFS=$'\t' read -r app_name cask_token app_path source bundle_id package_type; do
         $first || echo ","
         first=false
         # Escape strings for JSON
-        printf '  {"app": "%s", "cask": "%s", "path": "%s", "source": "%s", "bundle_id": "%s"}' \
-            "$app_name" "$cask_token" "$app_path" "$source" "$bundle_id"
+        printf '  {"app": "%s", "cask": "%s", "package": "%s", "package_type": "%s", "path": "%s", "source": "%s", "bundle_id": "%s"}' \
+            "$app_name" "$cask_token" "$cask_token" "${package_type:-cask}" "$app_path" "$source" "$bundle_id"
     done <<< "$data"
     echo ""
     echo "]"

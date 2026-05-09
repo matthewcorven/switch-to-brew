@@ -9,9 +9,9 @@ Many of us install apps from `.dmg` files, direct downloads, or vendor websites.
 ## ✨ Features
 
 - 🔍 **Smart discovery** — scans `/Applications` and `~/Applications`, filters out Apple system apps, Homebrew-managed apps, and installers/helpers
-- ⚡ **Fast matching** — ships with a curated mapping of 90+ popular apps to their cask tokens; falls back to `brew search` for the rest (with caching)
+- ⚡ **Fast matching** — ships with a curated mapping of 90+ popular apps to their Homebrew tokens; falls back to `brew search --cask` for the rest (with caching)
 - 🎯 **Interactive selection** — pick exactly which apps to switch using numbers, ranges, or "all"
-- 🔒 **Non-destructive** — uses `brew install --cask --adopt` to link your existing `.app` bundle into Homebrew tracking, no reinstall needed
+- 🔒 **Non-destructive by default** — uses `brew install --cask --adopt` to link your existing `.app` bundle into Homebrew tracking when a cask exists; formula-backed mappings are called out explicitly
 - 🏃 **Dry-run mode** — see exactly what would happen before committing
 - 📋 **Machine-readable output** — TSV and JSON formats for scripting
 - 🎨 **Beautiful terminal UI** — colors, spinners, and clean formatting (respects `NO_COLOR`)
@@ -57,10 +57,10 @@ Just run it — it discovers apps, shows matches, and lets you pick:
 $ switch-to-brew
 
 ▸ Scanning for applications...
-▸ Found 35 unmanaged apps. Resolving casks...
-▸ Matched 28 of 35 apps to Homebrew casks.
+▸ Found 35 unmanaged apps. Resolving Homebrew packages...
+▸ Matched 28 of 35 apps to Homebrew packages.
 
-  #   Application                        Cask                                 Source
+  #   Application                        Package                              Source
   ──────────────────────────────────────────────────────────────────────────────────────
   1   ChatGPT                            chatgpt                              manual
   2   Docker                             docker                               manual
@@ -158,10 +158,11 @@ switch-to-brew --app-store discover
 ## 🔧 How it works
 
 1. **Scan** — walks `/Applications` and `~/Applications` for `.app` bundles
-2. **Filter** — removes Apple system apps (by `com.apple.*` bundle ID), apps already managed by `brew list --cask`, helper/installer bundles, and Mac App Store apps
-3. **Match** — resolves each app to a Homebrew cask token:
+2. **Filter** — removes Apple system apps (by `com.apple.*` bundle ID), apps already managed by Homebrew, helper/installer bundles, and Mac App Store apps
+3. **Match** — resolves each app to a Homebrew package token:
    - First checks a built-in mapping of 90+ common apps (`data/known_casks.tsv`)
-   - Falls back to `brew search --cask` with normalised name variants
+   - Falls back to `brew search --cask` with normalised name variants for cask-backed apps
+   - Formula-backed mappings are supported for apps that ship a Homebrew formula but no cask (for example, oMLX)
    - Results are cached for 5 minutes to speed up repeated runs
 4. **Adopt** — runs `brew install --cask <token> --adopt` which tells Homebrew to claim the existing `.app` bundle rather than downloading a fresh copy
 
@@ -184,11 +185,11 @@ switch-to-brew/
 │   ├── constants.sh         # Colors, version, exit codes
 │   ├── utils.sh             # Logging, cache, confirm, helpers
 │   ├── discovery.sh         # App scanning and filtering
-│   ├── cask_match.sh        # Cask name resolution
+│   ├── cask_match.sh        # Homebrew package resolution
 │   ├── ui.sh                # Table rendering, interactive picker
-│   └── brew_ops.sh          # brew install --adopt operations
+│   └── brew_ops.sh          # Homebrew install / adopt operations
 ├── data/
-│   └── known_casks.tsv      # Curated app → cask mapping
+│   └── known_casks.tsv      # Curated app → Homebrew mapping
 ├── Makefile                  # install / uninstall / lint
 ├── LICENSE                   # MIT
 └── README.md
@@ -198,8 +199,8 @@ switch-to-brew/
 
 Contributions are welcome! Common ways to help:
 
-- **Add entries to `data/known_casks.tsv`** — if you notice an app that isn't matched, add its bundle ID → cask mapping
-- **Report mismatches** — if an app is matched to the wrong cask, open an issue
+- **Add entries to `data/known_casks.tsv`** — if you notice an app that isn't matched, add its bundle ID → Homebrew mapping
+- **Report mismatches** — if an app is matched to the wrong Homebrew token, open an issue
 - **Test on different macOS versions** — the more environments tested, the better
 
 ### Running the linter
@@ -213,6 +214,7 @@ make lint    # requires shellcheck
 - **App Store apps** require manual removal from the App Store before Homebrew can manage them. By default they're excluded from discovery.
 - **Setapp apps** are discovered and flagged but may not work correctly with `--adopt` since Setapp manages its own app lifecycle.
 - **Version mismatches** — if your installed version differs from the Homebrew cask version, `--adopt` alone will fail. By default, **switch-to-brew** detects this and retries with `--force` so Homebrew takes ownership of your existing binary. Run `brew upgrade --cask` later (or pass `--upgrade`) to update to the latest version. Use `--strict` to fail on mismatch instead.
+- **Formula-backed migrations** — some apps are only available as Homebrew formulas, not casks. In those cases switch-to-brew installs the formula and tells you that the original `.app` bundle remains in place; there is no `--adopt` path for those apps.
 - **Password prompts** — some casks include `.pkg` installers or privileged helpers (e.g. Docker, Parallels, DisplayLink, Microsoft Office) that require `sudo`. Homebrew will prompt for your macOS password during these adoptions. This is normal Homebrew behaviour and not something switch-to-brew controls.
 - Requires **Homebrew** to be installed. Requires **macOS** (this tool uses macOS-specific APIs like `defaults read` and `mdls`).
 

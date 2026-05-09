@@ -12,7 +12,7 @@ stb_ui_print_table() {
     # Header
     if [ "$show_index" = "true" ]; then
         printf '%s  #   %-34s %-36s %s%s\n' \
-            "${C_BOLD}" "Application" "Cask" "Source" "${C_RESET}"
+            "${C_BOLD}" "Application" "Package" "Source" "${C_RESET}"
         printf '  '
         printf '─%.0s' 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 \
             21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 \
@@ -22,7 +22,7 @@ stb_ui_print_table() {
         printf '\n'
     else
         printf '%s  %-34s %-36s %s%s\n' \
-            "${C_BOLD}" "Application" "Cask" "Source" "${C_RESET}"
+            "${C_BOLD}" "Application" "Package" "Source" "${C_RESET}"
         printf '  '
         printf '─%.0s' 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 \
             21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 \
@@ -31,7 +31,7 @@ stb_ui_print_table() {
         printf '\n'
     fi
 
-    while IFS="$(printf '\t')" read -r app_name cask_token app_path source bundle_id; do
+    while IFS="$(printf '\t')" read -r app_name cask_token app_path source bundle_id package_type; do
         idx=$((idx + 1))
         local source_badge
         case "$source" in

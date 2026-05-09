@@ -1,5 +1,5 @@
-# switch-to-brew — known app-to-cask mappings
-# bundle_id	cask_token	app_display_name
+# switch-to-brew — known app-to-Homebrew mappings
+# bundle_id	brew_token	app_display_name	package_type(optional; default=cask)
 #
 # This file provides instant lookups for common apps, avoiding slow
 # `brew search` API calls. Add entries as needed.
@@ -109,6 +109,7 @@ com.paulthetall.portingkit	porting-kit	Porting Kit
 
 # ── AI / ML ──────────────────────────────────────────────────────────────────
 ai.elementlabs.lmstudio	lm-studio	LM Studio
+com.omlx.app	jundot/omlx/omlx	oMLX	formula
 
 # ── 3D Printing ──────────────────────────────────────────────────────────────
 com.softfever3d.orca-slicer	orcaslicer	OrcaSlicer

@@ -1,7 +1,47 @@
 #!/bin/bash
-# switch-to-brew — Homebrew adoption operations
+# switch-to-brew — Homebrew install/adoption operations
 # Compatible with macOS default bash (3.2+)
 # shellcheck shell=bash
+
+# ── Install a formula-backed app migration ───────────────────────────────────
+# Some apps (for example oMLX) only offer a Homebrew formula rather than a
+# cask. In those cases we install the formula and leave the existing .app
+# bundle in place for the user to remove manually if desired.
+
+stb_brew_install_formula() {
+    local formula_token="$1"
+    local app_name="$2"
+    local app_path="$3"
+    local dry_run="${4:-false}"
+
+    if [ "$dry_run" = "true" ]; then
+        printf '  %s[dry-run]%s Would run: brew install %s\n' \
+            "${C_YELLOW}" "${C_RESET}" "$formula_token" >&2
+        if [ -n "$app_path" ]; then
+            printf '  %s[dry-run]%s Existing app bundle would remain at %s\n' \
+                "${C_YELLOW}" "${C_RESET}" "$app_path" >&2
+        fi
+        return 0
+    fi
+
+    stb_info "Installing ${C_BOLD}${app_name}${C_RESET} via formula ${C_GREEN}${formula_token}${C_RESET}..."
+
+    local output exit_code
+    output="$(brew install "$formula_token" 2>&1)" && exit_code=0 || exit_code=$?
+
+    if [ "$exit_code" -eq 0 ] || echo "$output" | grep -q "already installed"; then
+        stb_success "${app_name} is now available from Homebrew (${formula_token})"
+        if [ -n "$app_path" ] && [ -d "$app_path" ]; then
+            stb_warn "${app_name} remains at ${app_path} (Homebrew manages the CLI/service separately from the DMG app)"
+        fi
+        _stb_maybe_upgrade "$formula_token" "$app_name" "formula"
+        return 0
+    fi
+
+    stb_error "Failed to install ${app_name}:"
+    echo "$output" | sed 's/^/    /' >&2
+    return 1
+}
 
 # ── Switch a single app to Homebrew management ──────────────────────────────
 # Uses `brew install --cask --adopt` which links the existing .app bundle
@@ -11,7 +51,7 @@
 # --force unless --strict mode is active. If --upgrade is set, runs
 # `brew upgrade --cask` immediately after a successful force-adopt.
 #
-# Args: cask_token  app_name  app_path  [dry_run]
+# Args: brew_token  app_name  app_path  package_type  [dry_run]
 # Globals read: STB_STRICT, STB_UPGRADE
 # Returns: 0 on success, 1 on failure
 
@@ -19,7 +59,13 @@ stb_brew_adopt() {
     local cask_token="$1"
     local app_name="$2"
     local app_path="$3"
-    local dry_run="${4:-false}"
+    local package_type="${4:-cask}"
+    local dry_run="${5:-false}"
+
+    if [ "$package_type" = "formula" ]; then
+        stb_brew_install_formula "$cask_token" "$app_name" "$app_path" "$dry_run"
+        return $?
+    fi
 
     if [ "$dry_run" = "true" ]; then
         printf '  %s[dry-run]%s Would run: brew install --cask %s --adopt\n' \
@@ -84,13 +130,33 @@ stb_brew_adopt() {
     return 1
 }
 
-# ── Upgrade helper (called after successful adopt when --upgrade is set) ─────
+# ── Upgrade helper (called after successful install/adopt when --upgrade is set)
 
 _stb_maybe_upgrade() {
     local cask_token="$1"
     local app_name="$2"
+    local package_type="${3:-cask}"
 
     if [ "$STB_UPGRADE" != "true" ]; then
+        return 0
+    fi
+
+    if [ "$package_type" = "formula" ]; then
+        stb_info "Upgrading ${C_BOLD}${app_name}${C_RESET} to latest formula version..."
+
+        local formula_output formula_exit
+        formula_output="$(brew upgrade "$cask_token" 2>&1)" && formula_exit=0 || formula_exit=$?
+
+        if [ "$formula_exit" -eq 0 ]; then
+            if echo "$formula_output" | grep -q "already installed"; then
+                stb_debug "${app_name} is already at the latest version"
+            else
+                stb_success "${app_name} upgraded to latest version"
+            fi
+        else
+            stb_warn "Upgrade failed for ${app_name} (installed successfully, upgrade manually with: brew upgrade ${cask_token})"
+            stb_debug "$formula_output"
+        fi
         return 0
     fi
 
@@ -113,7 +179,7 @@ _stb_maybe_upgrade() {
 }
 
 # ── Batch switch ─────────────────────────────────────────────────────────────
-# Input on stdin: TSV lines (app_name \t cask_token \t app_path \t source \t bundle_id)
+# Input on stdin: TSV lines (app_name \t brew_token \t app_path \t source \t bundle_id \t package_type)
 # Args: [--dry-run]
 
 stb_brew_adopt_batch() {
@@ -139,7 +205,7 @@ stb_brew_adopt_batch() {
     fi
     echo "" >&2
 
-    while IFS="$(printf '\t')" read -r app_name cask_token app_path source bundle_id; do
+    while IFS="$(printf '\t')" read -r app_name cask_token app_path source bundle_id package_type; do
         [ -z "$app_name" ] && continue
 
         if [ "$source" = "app-store" ]; then
@@ -148,7 +214,7 @@ stb_brew_adopt_batch() {
             continue
         fi
 
-        if stb_brew_adopt "$cask_token" "$app_name" "$app_path" "$dry_run"; then
+        if stb_brew_adopt "$cask_token" "$app_name" "$app_path" "${package_type:-cask}" "$dry_run"; then
             succeeded=$((succeeded + 1))
         else
             failed=$((failed + 1))
