@@ -151,7 +151,7 @@ stb_cmd_switch() {
     for cask in "$@"; do
         local package_type
         package_type="$(stb_brew_detect_package_type "$cask")"
-        switch_input="${switch_input}${cask}	${cask}		manual	unknown	${package_type}
+        switch_input="${switch_input}${cask}	${cask}	__EMPTY__	manual	unknown	${package_type}
 "
     done
 

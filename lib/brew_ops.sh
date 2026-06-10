@@ -17,7 +17,7 @@ stb_brew_install_formula() {
     if [ "$dry_run" = "true" ]; then
         printf '  %s[dry-run]%s Would run: brew install %s\n' \
             "${C_YELLOW}" "${C_RESET}" "$formula_token" >&2
-        if [ -n "$app_path" ]; then
+        if [ -n "$app_path" ] && [ "$app_path" != "__EMPTY__" ] && [ -d "$app_path" ]; then
             printf '  %s[dry-run]%s Existing app bundle would remain at %s\n' \
                 "${C_YELLOW}" "${C_RESET}" "$app_path" >&2
         fi

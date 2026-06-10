@@ -109,9 +109,9 @@ stb_cask_resolve() {
     # Strategy 2: known map by app name (exact match)
     if [ -n "$STB_KNOWN_BY_NAME" ] && [ -f "$STB_KNOWN_BY_NAME" ]; then
         local match match_type
-        # Use awk for exact first-field match to avoid partial matches
-        match="$(awk -F'\t' -v name="$app_name" '$1 == name {print $2; exit}' "$STB_KNOWN_BY_NAME")"
-        match_type="$(awk -F'\t' -v name="$app_name" '$1 == name {print $3; exit}' "$STB_KNOWN_BY_NAME")"
+        # Match case-insensitively so bundle names like oMLX/OMLX still resolve
+        match="$(awk -F'\t' -v name="$app_name" 'tolower($1) == tolower(name) {print $2; exit}' "$STB_KNOWN_BY_NAME")"
+        match_type="$(awk -F'\t' -v name="$app_name" 'tolower($1) == tolower(name) {print $3; exit}' "$STB_KNOWN_BY_NAME")"
         [ -z "$match_type" ] && match_type="cask"
         if [ -n "$match" ] && stb_brew_package_exists "$match" "$match_type"; then
             printf '%s\t%s\n' "$match" "$match_type"
@@ -133,27 +133,31 @@ stb_cask_resolve() {
         return 1
     fi
 
-    # Search via brew API
+    # Search via Homebrew for both casks and formulas; this is important for
+    # formula-backed mappings such as oMLX that are not discoverable via
+    # `brew search --cask` alone.
     local search_output
-    search_output="$(brew search --cask "$normalised" 2>/dev/null)" || true
+    search_output="$(brew search "$normalised" 2>/dev/null)" || true
 
     # Check for exact match in results
-    local cask_token=""
-    cask_token="$(echo "$search_output" | grep -xF "$normalised" | head -1)"
+    local candidate=""
+    candidate="$(echo "$search_output" | grep -xF "$normalised" | head -1)"
 
     # If no exact match, try without trailing version number
-    if [ -z "$cask_token" ]; then
+    if [ -z "$candidate" ]; then
         local variant
         variant="$(echo "$normalised" | sed -E 's/-[0-9]+$//')"
         if [ "$variant" != "$normalised" ]; then
-            cask_token="$(echo "$search_output" | grep -xF "$variant" | head -1)"
+            candidate="$(echo "$search_output" | grep -xF "$variant" | head -1)"
         fi
     fi
 
     # Cache the result (even negative results to avoid repeated searches)
-    if [ -n "$cask_token" ]; then
-        echo "$cask_token" | stb_cache_set "cask-${normalised}"
-        printf '%s\t%s\n' "$cask_token" "cask"
+    if [ -n "$candidate" ]; then
+        local package_type
+        package_type="$(stb_brew_detect_package_type "$candidate")"
+        echo "${candidate}\t${package_type}" | stb_cache_set "cask-${normalised}"
+        printf '%s\t%s\n' "$candidate" "$package_type"
         return 0
     else
         echo "__NONE__" | stb_cache_set "cask-${normalised}"
