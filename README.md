@@ -53,7 +53,7 @@ sudo make uninstall
 
 Just run it — it discovers apps, shows matches, and lets you pick:
 
-```
+```text
 $ switch-to-brew
 
 ▸ Scanning for applications...
@@ -118,7 +118,7 @@ switch-to-brew switch --all
 
 If the installed version of an app differs from what the Homebrew cask currently ships, `--adopt` alone will fail. By default, **switch-to-brew** automatically retries with `--force` and shows a warning:
 
-```
+```text
 ⚠ Version mismatch: GIMP installed=3.0.6, cask=3.2.0
 ▸ Retrying with --force (brew upgrade will update it later)...
 ✔ GIMP force-adopted (3.0.6 → brew upgrade will bring to 3.2.0)
@@ -169,6 +169,7 @@ switch-to-brew --app-store discover
 ### What does `--adopt` do?
 
 When you run `brew install --cask foo --adopt`, Homebrew:
+
 - Downloads the cask metadata (version tracking, uninstall instructions, etc.)
 - Sees that the `.app` already exists in `/Applications`
 - **Links** the existing app into its tracking system instead of replacing it
@@ -178,7 +179,7 @@ Your app, its settings, and its data are untouched.
 
 ## 📁 Project structure
 
-```
+```text
 switch-to-brew/
 ├── switch-to-brew           # Main executable
 ├── lib/
@@ -202,6 +203,20 @@ Contributions are welcome! Common ways to help:
 - **Add entries to `data/known_casks.tsv`** — if you notice an app that isn't matched, add its bundle ID → Homebrew mapping
 - **Report mismatches** — if an app is matched to the wrong Homebrew token, open an issue
 - **Test on different macOS versions** — the more environments tested, the better
+
+### Development
+
+Run validation commands from the repository root:
+
+```bash
+make test
+make lint                    # requires shellcheck
+./switch-to-brew discover --no-color
+./switch-to-brew list --no-color
+./switch-to-brew -n switch <token>
+```
+
+The CLI checks depend on the local macOS and Homebrew state. Prefer `--dry-run` and `--no-color` when you want stable, reviewable output.
 
 ### Running the linter
 
